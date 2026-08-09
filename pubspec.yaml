@@ -1,0 +1,21 @@
+name: gcse_question_bank
+description: Interactive GCSE question bank app with lifetime stats and images.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.0
+  shared_preferences: ^2.1.0
+  url_launcher: ^6.1.10
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
