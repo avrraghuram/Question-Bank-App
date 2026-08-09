@@ -51,6 +51,14 @@ const List<IconData> avatarIcons = [
   Icons.workspace_premium,
 ];
 
+const String guestEmail = 'guest@local';
+const String accountsListKey = 'accounts_list';
+const String currentUserEmailKey = 'currentUserEmail';
+
+String _normalizeEmail(String email) => email.trim().toLowerCase();
+String _userKey(String email, String key) =>
+    'user_${_normalizeEmail(email).replaceAll(RegExp(r'[^a-z0-9_]'), '_')}_$key';
+
 const List<String> subjects = [
   'Math',
   'English',
@@ -1308,6 +1316,8 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   int correctCount = 0;
   int incorrectCount = 0;
   SharedPreferences? prefs;
+  String currentUserEmail = guestEmail;
+  bool isAuthenticated = false;
   final Map<String, int> subjectAttempts = {
     for (final subject in subjects) subject: 0,
   };
@@ -1363,34 +1373,214 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
 
   Future<void> _loadPreferences() async {
     prefs = await SharedPreferences.getInstance();
-    setState(() {
-      totalAsked = prefs?.getInt('totalAsked') ?? 0;
-      hintsUsed = prefs?.getInt('hintsUsed') ?? 0;
-      answersViewed = prefs?.getInt('answersViewed') ?? 0;
-      correctCount = prefs?.getInt('correctCount') ?? 0;
-      incorrectCount = prefs?.getInt('incorrectCount') ?? 0;
-      userName = prefs?.getString('userName') ?? '';
-      userTitle = prefs?.getString('userTitle') ?? titles.first;
-      selectedAvatarIndex = prefs?.getInt('avatarIndex') ?? 0;
-      for (final subject in subjects) {
-        subjectAttempts[subject] = prefs?.getInt('subject_$subject') ?? 0;
-      }
-    });
+    currentUserEmail = prefs?.getString(currentUserEmailKey) ?? guestEmail;
+    isAuthenticated = currentUserEmail != guestEmail;
+    await _loadAccountData(currentUserEmail);
   }
 
   Future<void> _savePreferences() async {
     if (prefs == null) return;
-    await prefs!.setInt('totalAsked', totalAsked);
-    await prefs!.setInt('hintsUsed', hintsUsed);
-    await prefs!.setInt('answersViewed', answersViewed);
-    await prefs!.setInt('correctCount', correctCount);
-    await prefs!.setInt('incorrectCount', incorrectCount);
-    await prefs!.setString('userName', userName);
-    await prefs!.setString('userTitle', userTitle);
-    await prefs!.setInt('avatarIndex', selectedAvatarIndex);
+    await prefs!.setString(currentUserEmailKey, currentUserEmail);
+    await prefs!.setInt(_userKey(currentUserEmail, 'totalAsked'), totalAsked);
+    await prefs!.setInt(_userKey(currentUserEmail, 'hintsUsed'), hintsUsed);
+    await prefs!
+        .setInt(_userKey(currentUserEmail, 'answersViewed'), answersViewed);
+    await prefs!
+        .setInt(_userKey(currentUserEmail, 'correctCount'), correctCount);
+    await prefs!
+        .setInt(_userKey(currentUserEmail, 'incorrectCount'), incorrectCount);
+    await prefs!.setString(_userKey(currentUserEmail, 'userName'), userName);
+    await prefs!.setString(_userKey(currentUserEmail, 'userTitle'), userTitle);
+    await prefs!
+        .setInt(_userKey(currentUserEmail, 'avatarIndex'), selectedAvatarIndex);
     for (final subject in subjects) {
-      await prefs!.setInt('subject_$subject', subjectAttempts[subject] ?? 0);
+      await prefs!.setInt(_userKey(currentUserEmail, 'subject_$subject'),
+          subjectAttempts[subject] ?? 0);
     }
+  }
+
+  Future<void> _loadAccountData(String email) async {
+    if (prefs == null) return;
+    final normalizedEmail = _normalizeEmail(email);
+    setState(() {
+      totalAsked = prefs!.getInt(_userKey(normalizedEmail, 'totalAsked')) ?? 0;
+      hintsUsed = prefs!.getInt(_userKey(normalizedEmail, 'hintsUsed')) ?? 0;
+      answersViewed =
+          prefs!.getInt(_userKey(normalizedEmail, 'answersViewed')) ?? 0;
+      correctCount =
+          prefs!.getInt(_userKey(normalizedEmail, 'correctCount')) ?? 0;
+      incorrectCount =
+          prefs!.getInt(_userKey(normalizedEmail, 'incorrectCount')) ?? 0;
+      userName = prefs!.getString(_userKey(normalizedEmail, 'userName')) ??
+          (normalizedEmail == guestEmail
+              ? ''
+              : normalizedEmail.split('@').first);
+      userTitle = prefs!.getString(_userKey(normalizedEmail, 'userTitle')) ??
+          titles.first;
+      selectedAvatarIndex =
+          prefs!.getInt(_userKey(normalizedEmail, 'avatarIndex')) ?? 0;
+      for (final subject in subjects) {
+        subjectAttempts[subject] =
+            prefs!.getInt(_userKey(normalizedEmail, 'subject_$subject')) ?? 0;
+      }
+    });
+  }
+
+  Future<void> _saveAccountEmail(String email) async {
+    if (prefs == null) return;
+    final normalizedEmail = _normalizeEmail(email);
+    final accounts = prefs!.getStringList(accountsListKey) ?? <String>[];
+    if (!accounts.contains(normalizedEmail)) {
+      accounts.add(normalizedEmail);
+      await prefs!.setStringList(accountsListKey, accounts);
+    }
+  }
+
+  Future<bool> _validatePassword(String email, String password) async {
+    if (prefs == null) return false;
+    final stored = prefs!.getString(_userKey(email, 'password'));
+    return stored != null && stored == password;
+  }
+
+  Future<void> _signUp(String email, String password) async {
+    if (prefs == null) return;
+    final normalizedEmail = _normalizeEmail(email);
+    final accounts = prefs!.getStringList(accountsListKey) ?? <String>[];
+    if (accounts.contains(normalizedEmail)) {
+      return;
+    }
+    await prefs!.setString(_userKey(normalizedEmail, 'password'), password);
+    await _saveAccountEmail(normalizedEmail);
+    currentUserEmail = normalizedEmail;
+    isAuthenticated = true;
+    await _savePreferences();
+  }
+
+  Future<bool> _signIn(String email, String password) async {
+    if (prefs == null) return false;
+    final normalizedEmail = _normalizeEmail(email);
+    final accounts = prefs!.getStringList(accountsListKey) ?? <String>[];
+    if (!accounts.contains(normalizedEmail)) {
+      return false;
+    }
+    if (!await _validatePassword(normalizedEmail, password)) {
+      return false;
+    }
+    currentUserEmail = normalizedEmail;
+    isAuthenticated = true;
+    await _loadAccountData(normalizedEmail);
+    await _savePreferences();
+    return true;
+  }
+
+  Future<void> _signOut() async {
+    currentUserEmail = guestEmail;
+    isAuthenticated = false;
+    await _loadAccountData(guestEmail);
+    await _savePreferences();
+  }
+
+  void _showAuthDialog({required bool signUp}) {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final displayNameController = TextEditingController();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 18,
+          ),
+          child: StatefulBuilder(builder: (context, setModalState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(signUp ? 'Create Account' : 'Sign In',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                ),
+                if (signUp) ...[
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: displayNameController,
+                    decoration: const InputDecoration(
+                        labelText: 'Display name (optional)'),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          final email = emailController.text.trim();
+                          final password = passwordController.text;
+                          if (email.isEmpty || password.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Email and password are required.')),
+                            );
+                            return;
+                          }
+                          if (signUp) {
+                            await _signUp(email, password);
+                            final displayName =
+                                displayNameController.text.trim();
+                            if (displayName.isNotEmpty) {
+                              setState(() => userName = displayName);
+                              await _savePreferences();
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Account created and signed in.')),
+                            );
+                          } else {
+                            final success = await _signIn(email, password);
+                            if (!success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Sign in failed. Check email and password.')),
+                              );
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Signed in successfully.')),
+                            );
+                          }
+                          Navigator.of(context).pop();
+                        },
+                        child: Text(signUp ? 'Create account' : 'Sign in'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+              ],
+            );
+          }),
+        );
+      },
+    );
   }
 
   Question get _currentQuestion =>
@@ -2153,6 +2343,11 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
                   Text(userTitle,
                       style: const TextStyle(color: Colors.black54)),
                   const SizedBox(height: 10),
+                  Text(
+                    isAuthenticated ? currentUserEmail : 'Guest account',
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
@@ -2170,9 +2365,41 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: _showProfileEditor,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: _showProfileEditor,
+                ),
+                if (isAuthenticated)
+                  FilledButton(
+                    onPressed: _signOut,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red.shade400,
+                      minimumSize: const Size(100, 40),
+                    ),
+                    child: const Text('Sign out'),
+                  )
+                else
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      FilledButton(
+                        onPressed: () => _showAuthDialog(signUp: false),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(100, 40),
+                        ),
+                        child: const Text('Sign in'),
+                      ),
+                      const SizedBox(height: 6),
+                      OutlinedButton(
+                        onPressed: () => _showAuthDialog(signUp: true),
+                        child: const Text('Sign up'),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ],
         ),
