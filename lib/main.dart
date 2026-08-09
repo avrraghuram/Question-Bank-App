@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'web_protection.dart';
+import 'widgets/ai_chat_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  installWebProtection();
   runApp(const QuestionBankApp());
 }
 
@@ -31,9 +34,6 @@ class Question {
 }
 
 String _b64(String input) => base64Encode(utf8.encode(input));
-
-const String openAiApiKey =
-    ''; // Paste your OpenAI GPT-4 API key here for AI mode.
 
 const List<String> titles = [
   'Study Star',
@@ -97,6 +97,301 @@ const Map<String, Color> subjectColors = {
   'Religious Studies': Colors.blueGrey,
   'Design Tech': Colors.tealAccent,
   'Drama': Colors.deepOrangeAccent,
+};
+
+const Map<int, int> examDurationQuestionMap = {
+  5: 3,
+  10: 5,
+  15: 7,
+  20: 8,
+  30: 10,
+  45: 12,
+  60: 15,
+};
+
+const Map<String, String> subjectMarkingSchemes = {
+  'Math':
+      'Marks are awarded for clear method, correct working, and a correct final answer.',
+  'English':
+      'Marks focus on clear explanation, correct use of terms, and written expression.',
+  'Science':
+      'Marks reward accurate facts, clear terminology, and a correct conclusion.',
+  'History':
+      'Marks reward accurate facts, developed explanation, and use of dates or events.',
+  'Geography':
+      'Marks reward correct terminology, explanation of processes, and real-world examples.',
+  'Computer Science':
+      'Marks focus on correct concepts, clear logic, and technical accuracy.',
+  'Biology':
+      'Marks reward correct biological terms, clear explanation, and linked examples.',
+  'Chemistry':
+      'Marks focus on chemical accuracy, correct ideas, and balanced explanations.',
+  'Physics':
+      'Marks reward correct terminology, explanation of forces or energy, and examples.',
+  'French':
+      'Marks focus on correct meaning, vocabulary, and language use in the example.',
+  'Spanish':
+      'Marks focus on correct meaning, vocabulary, and language use in the example.',
+  'Art':
+      'Marks reward understanding of art ideas, clear descriptions, and creative examples.',
+  'Music': 'Marks focus on musical terms, clear explanation, and example use.',
+  'PE':
+      'Marks reward understanding of skills, correct terminology, and fitness ideas.',
+  'Business':
+      'Marks focus on business terms, clear explanation, and real-world context.',
+  'Economics':
+      'Marks reward economic terms, clear explanation, and simple examples.',
+  'Psychology':
+      'Marks focus on psychological ideas, clear explanation, and examples.',
+  'Religious Studies':
+      'Marks reward understanding of beliefs, clear explanation, and respectful examples.',
+  'Design Tech':
+      'Marks focus on design terms, clear explanation, and practical examples.',
+  'Drama':
+      'Marks reward understanding of drama terms, character ideas, and clear examples.',
+};
+
+const Map<String, List<String>> gcseKeywordLibrary = {
+  'Math': [
+    'algebra',
+    'equation',
+    'function',
+    'gradient',
+    'percentage',
+    'ratio',
+    'probability',
+    'factor',
+    'variable',
+    'geometry',
+  ],
+  'English': [
+    'metaphor',
+    'simile',
+    'tone',
+    'theme',
+    'imagery',
+    'context',
+    'inference',
+    'structure',
+    'audience',
+    'perspective',
+  ],
+  'Science': [
+    'photosynthesis',
+    'cell',
+    'energy',
+    'force',
+    'reaction',
+    'ecosystem',
+    'genetics',
+    'compound',
+    'acid',
+    'cellular respiration',
+  ],
+  'History': [
+    'empire',
+    'revolution',
+    'chronology',
+    'cause',
+    'consequence',
+    'interpretation',
+    'evidence',
+    'monarchy',
+    'constitution',
+    'protest',
+  ],
+  'Geography': [
+    'climate',
+    'erosion',
+    'sustainability',
+    'urbanisation',
+    'development',
+    'hazard',
+    'water cycle',
+    'population',
+    'ecosystem',
+    'resource',
+  ],
+  'Computer Science': [
+    'algorithm',
+    'binary',
+    'variable',
+    'loop',
+    'function',
+    'network',
+    'database',
+    'cybersecurity',
+    'programming',
+    'logic',
+  ],
+  'Biology': [
+    'DNA',
+    'cell',
+    'enzyme',
+    'genetics',
+    'ecosystem',
+    'adaptation',
+    'homeostasis',
+    'respiration',
+    'photosynthesis',
+    'organism',
+  ],
+  'Chemistry': [
+    'atom',
+    'molecule',
+    'reaction',
+    'periodic table',
+    'acid',
+    'base',
+    'compound',
+    'catalyst',
+    'mass',
+    'concentration',
+  ],
+  'Physics': [
+    'force',
+    'motion',
+    'energy',
+    'power',
+    'gravity',
+    'momentum',
+    'electricity',
+    'magnetism',
+    'wave',
+    'speed',
+  ],
+  'French': [
+    'bonjour',
+    'merci',
+    'vocabulaire',
+    'grammaire',
+    'profil',
+    'conjugaison',
+    'phrase',
+    'traduction',
+    'expression',
+    'prononciation',
+  ],
+  'Spanish': [
+    'hola',
+    'gracias',
+    'vocabulario',
+    'gramática',
+    'frase',
+    'traducción',
+    'expresión',
+    'verbo',
+    'sustantivo',
+    'pronunciación',
+  ],
+  'Art': [
+    'composition',
+    'perspective',
+    'texture',
+    'medium',
+    'colour',
+    'form',
+    'contrast',
+    'style',
+    'critique',
+    'concept',
+  ],
+  'Music': [
+    'rhythm',
+    'tempo',
+    'melody',
+    'harmony',
+    'dynamics',
+    'pitch',
+    'texture',
+    'structure',
+    'notation',
+    'timbre',
+  ],
+  'PE': [
+    'fitness',
+    'skill',
+    'stamina',
+    'strength',
+    'agility',
+    'technique',
+    'training',
+    'teamwork',
+    'strategy',
+    'health',
+  ],
+  'Business': [
+    'market',
+    'profit',
+    'supply',
+    'demand',
+    'entrepreneur',
+    'stakeholder',
+    'revenue',
+    'cost',
+    'brand',
+    'customer',
+  ],
+  'Economics': [
+    'inflation',
+    'scarcity',
+    'GDP',
+    'consumer',
+    'cost',
+    'resources',
+    'growth',
+    'unemployment',
+    'demand',
+    'market',
+  ],
+  'Psychology': [
+    'behaviour',
+    'cognition',
+    'memory',
+    'emotion',
+    'development',
+    'perception',
+    'learning',
+    'conditioning',
+    'personality',
+    'social',
+  ],
+  'Religious Studies': [
+    'belief',
+    'faith',
+    'ethics',
+    'worship',
+    'sacred',
+    'scripture',
+    'ritual',
+    'pilgrimage',
+    'morality',
+    'religion',
+  ],
+  'Design Tech': [
+    'prototype',
+    'material',
+    'innovation',
+    'function',
+    'structure',
+    'sustainability',
+    'design',
+    'model',
+    'specification',
+    'user',
+  ],
+  'Drama': [
+    'character',
+    'dialogue',
+    'staging',
+    'tension',
+    'conflict',
+    'atmosphere',
+    'performance',
+    'script',
+    'improvisation',
+    'monologue',
+  ],
 };
 
 final Map<String, List<Question>> questionBank = {
@@ -1025,7 +1320,6 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   bool quizAnsweredCorrectly = false;
   bool examStarted = false;
   int examQuestionCount = 4;
-  int examQuestionNumber = 0;
   int examCorrect = 0;
   String examAnswer = '';
   String examResultMessage = '';
@@ -1035,7 +1329,16 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   final TextEditingController aiController = TextEditingController();
   final TextEditingController videoSearchController = TextEditingController();
   String videoSearchQuery = '';
+  bool aiEnabled = true;
+  String aiModeMessage = 'AI mode is enabled. Ask any GCSE question safely.';
+  List<String> aiSuggestions = [];
   int lastAnswerScore = 0;
+  int examDurationMinutes = 10;
+  int examQuestionIndex = 0;
+  List<Question> examQuestions = [];
+  List<String> examStudentAnswers = [];
+  List<int> examScores = [];
+  bool showExamReview = false;
   String lastAnswerStars = '';
   String lastAnswerFeedback = '';
   final TextEditingController examAnswerController = TextEditingController();
@@ -1381,14 +1684,20 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   }
 
   void _startExam() {
+    final count = _questionCountForDuration(examDurationMinutes);
     setState(() {
       examStarted = true;
-      examQuestionNumber = 0;
+      examQuestionCount = count;
+      examQuestionIndex = 0;
       examCorrect = 0;
       examResultMessage = '';
       examAnswer = '';
       examAnswerController.text = '';
-      examSecondsRemaining = 120;
+      examSecondsRemaining = examDurationMinutes * 60;
+      showExamReview = false;
+      examQuestions = _prepareExamQuestions(selectedSubject, examQuestionCount);
+      examStudentAnswers = List.filled(examQuestionCount, '');
+      examScores = List.filled(examQuestionCount, 0);
     });
     examTimer?.cancel();
     examTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -1403,20 +1712,19 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
 
   void _submitExamAnswer() {
     final answer = examAnswer.trim();
-    final ideal = _currentQuestion.idealAnswer;
+    final ideal = _currentExamQuestion.idealAnswer;
     final score = _gradeAnswer(answer, ideal);
-    final stars = _starsForScore(score);
     setState(() {
+      examStudentAnswers[examQuestionIndex] = answer;
+      examScores[examQuestionIndex] = score;
       if (score >= 3) examCorrect += 1;
-      examResultMessage = 'Score: $score/5 $stars';
-      examQuestionNumber += 1;
+      examResultMessage = 'Score: $score/5 ${_starsForScore(score)}';
+      examQuestionIndex += 1;
       examAnswer = '';
       examAnswerController.text = '';
     });
-    if (examQuestionNumber >= examQuestionCount) {
+    if (examQuestionIndex >= examQuestionCount) {
       _finishExam();
-    } else {
-      _chooseRandomQuestion();
     }
   }
 
@@ -1424,126 +1732,284 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
     examTimer?.cancel();
     setState(() {
       examStarted = false;
+      showExamReview = true;
       examResultMessage =
           'Exam finished. You scored $examCorrect out of $examQuestionCount.';
     });
   }
 
+  int _questionCountForDuration(int minutes) {
+    return examDurationQuestionMap[minutes] ?? 5;
+  }
+
+  List<Question> _prepareExamQuestions(String subject, int count) {
+    final questions = List<Question>.from(questionBank[subject] ?? []);
+    questions.shuffle();
+    return questions.take(count).toList();
+  }
+
+  Question get _currentExamQuestion => examQuestions.isEmpty
+      ? _currentQuestion
+      : examQuestions[examQuestionIndex];
+
+  void _editExamAnswer(int index) {
+    final controller = TextEditingController(text: examStudentAnswers[index]);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 18,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Fix your exam answer',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  labelText: 'Revised answer',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton(
+                onPressed: () {
+                  final revised = controller.text.trim();
+                  final score =
+                      _gradeAnswer(revised, examQuestions[index].idealAnswer);
+                  setState(() {
+                    examStudentAnswers[index] = revised;
+                    examScores[index] = score;
+                    examCorrect = examScores.where((s) => s >= 3).length;
+                    examResultMessage =
+                        'Review saved. Current score: $examCorrect out of $examQuestionCount.';
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Save Revision'),
+              ),
+              const SizedBox(height: 18),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _markingSchemeForSubject(String subject) {
+    return subjectMarkingSchemes[subject] ??
+        'Marks are awarded for clear explanation, correct terms, and good examples.';
+  }
+
+  void _toggleAiEnabled(bool enabled) {
+    setState(() {
+      aiEnabled = enabled;
+      aiModeMessage = enabled
+          ? 'AI mode is enabled. Ask any GCSE question safely.'
+          : 'AI mode is disabled. Turn it on again when you want help.';
+      if (!enabled) aiSuggestions = [];
+    });
+  }
+
+  void _updateAiSuggestions(String value) {
+    final prompt = value.trim().toLowerCase();
+    if (prompt.isEmpty) {
+      setState(() => aiSuggestions = []);
+      return;
+    }
+    final keywordList = gcseKeywordLibrary[selectedSubject] ?? [];
+    final matches = keywordList
+        .where((keyword) => keyword.toLowerCase().contains(prompt))
+        .take(5)
+        .toList();
+    setState(() => aiSuggestions = matches);
+  }
+
+  void _insertAiSuggestion(String suggestion) {
+    final current = aiController.text.trim();
+    final newText = current.isEmpty ? suggestion : '$current $suggestion';
+    aiController.text = newText;
+    aiController.selection = TextSelection.fromPosition(
+      TextPosition(offset: aiController.text.length),
+    );
+    _updateAiSuggestions(newText);
+  }
+
   Future<void> _sendAiQuestion() async {
     final prompt = aiController.text.trim();
-    if (prompt.isEmpty) return;
+    if (!aiEnabled || prompt.isEmpty) return;
     setState(() {
       aiMessages.add({'role': 'user', 'text': prompt});
       aiController.clear();
     });
-    final response = await _fetchOpenAiResponse(prompt);
+    final response = await _fetchAiResponse(prompt);
     setState(() {
       aiMessages.add({'role': 'assistant', 'text': response});
     });
   }
 
-  Future<String> _fetchOpenAiResponse(String prompt) async {
-    if (openAiApiKey.isEmpty) {
-      return _generateAiResponse(prompt);
+  Future<String> _fetchAiResponse(String prompt) async {
+    if (!_isSafeAiPrompt(prompt)) {
+      return 'I can only answer safe GCSE questions. Please ask about school subjects like maths, science, English, or history.';
     }
+
     try {
       final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $openAiApiKey',
-        },
-        body: jsonEncode({
-          'model': 'gpt-4',
-          'messages': [
-            {'role': 'system', 'content': 'You are a helpful GCSE tutor.'},
-            {'role': 'user', 'content': prompt},
-          ],
-          'max_tokens': 250,
-          'temperature': 0.7,
-        }),
+        Uri.parse('http://127.0.0.1:8080/api/ai'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'message': prompt}),
       );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final answer =
-            ((data['choices'] as List).first['message']['content']) as String;
-        return answer.trim();
+        return data['reply']?.toString() ?? 'The AI did not return a reply.';
       }
-      return 'GPT-4 could not reply. ' + _generateAiResponse(prompt);
+
+      return 'The AI backend could not reply. ' + _generateAiResponse(prompt);
     } catch (_) {
-      return 'GPT-4 is unavailable. ' + _generateAiResponse(prompt);
+      return 'The AI backend is unavailable. ' + _generateAiResponse(prompt);
     }
   }
 
   String _generateAiResponse(String prompt) {
     final normalized = prompt.trim();
     if (normalized.isEmpty) {
-      return 'Ask any GCSE question and I will answer it with a clear explanation.';
+      return 'Ask for a GCSE word meaning or concept, and I will explain it with a subject example.';
     }
 
     final lower = normalized.toLowerCase();
-    for (final questions in questionBank.values) {
-      for (final q in questions) {
-        final questionText = q.text.toLowerCase();
-        if (questionText.contains(lower) ||
-            lower.contains(questionText) ||
-            q.idealAnswer.toLowerCase().contains(lower) ||
-            q.hint.toLowerCase().contains(lower)) {
-          return 'Based on that question, a strong answer is: ${q.idealAnswer}';
-        }
-      }
-    }
+    final term = normalized
+        .replaceAll(
+            RegExp(r'^(what is|what are|define|explain)\s+',
+                caseSensitive: false),
+            '')
+        .trim();
 
-    final subjectAnswers = {
-      'gravity':
-          'Gravity is the force that pulls objects toward Earth and makes them fall.',
-      'photosynthesis':
-          'Photosynthesis is how plants turn sunlight, water, and carbon dioxide into food.',
-      'atom':
-          'An atom is the smallest unit of an element made of protons, neutrons, and electrons.',
-      'formula':
-          'A formula is a mathematical rule or relationship expressed using symbols.',
-      'perimeter': 'Perimeter is the distance around a shape.',
-      'area': 'Area is the amount of space inside a flat shape.',
-      'proportion':
-          'Proportion compares the relative sizes of two or more values.',
-      'percent':
-          'Percent means parts per hundred and is written with the % sign.',
-      'metaphor': 'A metaphor compares two things without using like or as.',
-      'adjective': 'An adjective describes a noun by giving more detail.',
-      'conclusion':
-          'A conclusion sums up the main points and gives a final thought.',
-      'economics':
-          'Economics studies how people use resources and make choices.',
-      'business':
-          'Business is about making, selling, and managing products or services.',
-      'cell':
-          'A cell is the smallest unit of life that makes up living things.',
-      'function':
-          'A function describes what something is used for or what it does.',
-      'belief': 'A belief is an idea that someone accepts as true.',
-      'script':
-          'A script is the written text of a play, including dialogue and stage directions.',
+    final subjectExamples = {
+      'Math':
+          'For example, in math, "$term" can be used when you show your working clearly in a problem.',
+      'English':
+          'For example, in English, "$term" can be used when explaining a text or writing about a poem.',
+      'Science':
+          'For example, in science, "$term" can describe a process or a scientific idea in a report.',
+      'History':
+          'For example, in history, use "$term" to describe events, dates, or the reasons people acted as they did.',
+      'Geography':
+          'For example, in geography, "$term" can explain landscapes, weather, or how people use resources.',
+      'Computer Science':
+          'For example, in computer science, "$term" can describe how a program, system, or data works.',
+      'Biology':
+          'For example, in biology, "$term" can describe living things, cells, or how organisms behave.',
+      'Chemistry':
+          'For example, in chemistry, "$term" can describe atoms, reactions, or substances in a lab.',
+      'Physics':
+          'For example, in physics, "$term" can describe forces, energy, or how objects move.',
+      'French':
+          'For example, in French, "$term" can be used to explain a word or phrase in a short sentence.',
+      'Spanish':
+          'For example, in Spanish, "$term" can be used to describe a word or idea in a sentence.',
+      'Art':
+          'For example, in art, "$term" can describe materials, style, or the feeling behind a picture.',
+      'Music':
+          'For example, in music, "$term" can describe sound, rhythm, or a performance idea.',
+      'PE':
+          'For example, in PE, "$term" can describe fitness, skills, or a health idea.',
+      'Business':
+          'For example, in business, "$term" can describe how companies, money, or customers work together.',
+      'Economics':
+          'For example, in economics, "$term" can describe money, markets, or choices people make.',
+      'Psychology':
+          'For example, in psychology, "$term" can describe behaviour, thoughts, or feelings.',
+      'Religious Studies':
+          'For example, in religious studies, "$term" can describe beliefs, practices, or ethical ideas.',
+      'Design Tech':
+          'For example, in design technology, "$term" can describe a product, plan, or how something is made.',
+      'Drama':
+          'For example, in drama, "$term" can describe a character, emotion, or how a scene is performed.',
     };
 
-    for (final entry in subjectAnswers.entries) {
-      if (lower.contains(entry.key)) {
-        return entry.value;
-      }
+    final example = subjectExamples[selectedSubject] ??
+        'For example, in $selectedSubject, "$term" can be used in a sentence related to the subject.';
+
+    final definitions = {
+      'gravity':
+          'Gravity is the force that pulls objects toward Earth and keeps planets in orbit.',
+      'photosynthesis':
+          'Photosynthesis is how plants use sunlight, water, and carbon dioxide to make food.',
+      'atom':
+          'An atom is the smallest part of an element and is made of protons, neutrons, and electrons.',
+      'formula':
+          'A formula is a mathematical rule or relationship shown using symbols.',
+      'perimeter': 'Perimeter is the distance around the edge of a shape.',
+      'area': 'Area is the amount of space inside a shape.',
+      'proportion':
+          'Proportion compares the relative size of two or more quantities.',
+      'percent':
+          'Percent is a way to show parts per hundred using the % symbol.',
+      'metaphor':
+          'A metaphor is a comparison that describes one thing as if it were another.',
+      'adjective': 'An adjective is a word that describes a noun.',
+      'conclusion':
+          'A conclusion is the final part of an answer that sums up the main points.',
+      'economics':
+          'Economics is the study of how people use resources and make choices.',
+      'business':
+          'Business is the activity of buying, selling, and managing goods or services.',
+      'cell':
+          'A cell is the smallest unit of life that makes up plants and animals.',
+      'function': 'A function is what something is used for or what it does.',
+      'belief': 'A belief is an idea that someone thinks is true.',
+      'script': 'A script is the written words actors say in a play.',
+    };
+
+    if (definitions.containsKey(term.toLowerCase())) {
+      return '${definitions[term.toLowerCase()]} $example';
     }
 
     if (lower.contains('what is') ||
         lower.contains('what are') ||
         lower.contains('define')) {
-      return 'That is a good question. Use simple sentences and key terms to answer it clearly.';
+      return 'The term "$term" means something important in GCSE work. $example';
     }
     if (lower.contains('how') ||
         lower.contains('why') ||
         lower.contains('explain')) {
-      return 'Break the answer into steps: define the topic, describe it, and give an example when possible.';
+      return 'A good answer explains the idea clearly. $example';
     }
 
-    return 'I can answer GCSE questions across subjects. Give me a specific question and I will explain it clearly.';
+    return 'If you want a GCSE word meaning, type a term such as "define proportion" or "what is gravity". $example';
+  }
+
+  bool _isSafeAiPrompt(String prompt) {
+    final lower = prompt.toLowerCase();
+    const blocked = [
+      'kill',
+      'die',
+      'suicide',
+      'harm',
+      'attack',
+      'weapon',
+      'gun',
+      'bomb',
+      'violence',
+      'drugs',
+      'sex',
+      'porn',
+      'hate',
+      'racist',
+      'terror',
+    ];
+    return !blocked.any(lower.contains);
   }
 
   int _gradeAnswer(String answer, String ideal) {
@@ -1618,33 +2084,43 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
         title: const Text('GCSE Question Bank'),
         centerTitle: true,
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [subjectColor.withOpacity(0.08), Colors.white],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildProfileCard(subjectColor),
-                const SizedBox(height: 16),
-                _buildModeSelector(subjectColor),
-                const SizedBox(height: 16),
-                _buildSubjectSelector(),
-                const SizedBox(height: 20),
-                _buildPracticeCard(question, subjectColor),
-                const SizedBox(height: 18),
-                _buildStatsCard(subjectColor, accuracy),
-              ],
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [subjectColor.withOpacity(0.08), Colors.white],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildProfileCard(subjectColor),
+                    const SizedBox(height: 16),
+                    _buildModeSelector(subjectColor),
+                    const SizedBox(height: 16),
+                    _buildSubjectSelector(),
+                    const SizedBox(height: 20),
+                    _buildPracticeCard(question, subjectColor),
+                    const SizedBox(height: 18),
+                    _buildStatsCard(subjectColor, accuracy),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          const Positioned(
+            right: 0,
+            bottom: 0,
+            child: AiChatWidget(),
+          ),
+        ],
       ),
     );
   }
@@ -1957,6 +2433,7 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   }
 
   Widget _buildExamPracticeMode(Question question, Color subjectColor) {
+    final currentQuestion = examStarted ? _currentExamQuestion : question;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
@@ -1969,8 +2446,28 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
             const SizedBox(height: 14),
             if (!examStarted) ...[
               const Text(
-                  'Start a short exam session to practise under timed conditions.',
+                  'Choose how long your test will be, then start exam practice.',
                   style: TextStyle(color: Colors.black54)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: examDurationQuestionMap.keys.map((minutes) {
+                  final selected = examDurationMinutes == minutes;
+                  return ChoiceChip(
+                    label: Text('$minutes mins'),
+                    selected: selected,
+                    selectedColor: subjectColor.withOpacity(0.22),
+                    onSelected: (_) =>
+                        setState(() => examDurationMinutes = minutes),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Approx ${_questionCountForDuration(examDurationMinutes)} questions for ${examDurationMinutes} minutes.',
+                style: const TextStyle(color: Colors.black87),
+              ),
               const SizedBox(height: 18),
               OutlinedButton.icon(
                 icon: const Icon(Icons.timer),
@@ -1982,13 +2479,17 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
                 _buildRevealCard(
                     'Last exam score', examResultMessage, Colors.blue.shade50),
               ],
+              if (showExamReview && examQuestions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildExamReviewSheet(subjectColor),
+              ],
             ] else ...[
-              _buildQuestionImage(question.imageUrl),
+              _buildQuestionImage(currentQuestion.imageUrl),
               const SizedBox(height: 14),
-              Text('Question ${examQuestionNumber + 1} of $examQuestionCount',
+              Text('Question ${examQuestionIndex + 1} of $examQuestionCount',
                   style: const TextStyle(fontSize: 14, color: Colors.black54)),
               const SizedBox(height: 10),
-              Text(question.text,
+              Text(currentQuestion.text,
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.w600)),
               const SizedBox(height: 14),
@@ -2009,7 +2510,7 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
               const SizedBox(height: 14),
               ElevatedButton.icon(
                 icon: const Icon(Icons.flag),
-                label: Text(examQuestionNumber + 1 < examQuestionCount
+                label: Text(examQuestionIndex + 1 < examQuestionCount
                     ? 'Submit and Next'
                     : 'Submit and Finish'),
                 style: ElevatedButton.styleFrom(backgroundColor: subjectColor),
@@ -2035,57 +2536,168 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildSectionTitle('AI Doubt Helper', subjectColor),
+            _buildSectionTitle('Word Meaning Helper', subjectColor),
+            const SizedBox(height: 10),
+            const Text(
+              'Ask for a word meaning or GCSE concept and see an example sentence for the selected subject.',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 14),
+            SwitchListTile(
+              title: const Text('Enable AI Mode'),
+              subtitle: const Text('Toggle AI help on or off.'),
+              value: aiEnabled,
+              activeColor: subjectColor,
+              onChanged: _toggleAiEnabled,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              aiModeMessage,
+              style: const TextStyle(color: Colors.black54),
+            ),
             const SizedBox(height: 14),
             Container(
-              height: 260,
+              height: 240,
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: aiMessages.length,
-                itemBuilder: (context, index) {
-                  final message = aiMessages[index];
-                  final isUser = message['role'] == 'user';
-                  return Align(
-                    alignment:
-                        isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isUser
-                            ? subjectColor.withOpacity(0.18)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade300),
+              child: aiMessages.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Your AI responses will appear here once you submit a question.',
+                          style: TextStyle(color: Colors.black54),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                      child: Text(message['text'] ?? '',
-                          style: const TextStyle(fontSize: 15)),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: aiMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = aiMessages[index];
+                        final isUser = message['role'] == 'user';
+                        return Align(
+                          alignment: isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isUser
+                                  ? subjectColor.withOpacity(0.18)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Text(message['text'] ?? '',
+                                style: const TextStyle(fontSize: 15)),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             TextField(
               controller: aiController,
               maxLines: 3,
+              enabled: aiEnabled,
+              onChanged: aiEnabled ? _updateAiSuggestions : null,
               decoration: InputDecoration(
-                labelText: 'Ask a doubt',
-                hintText: 'Type your question here...',
+                labelText:
+                    aiEnabled ? 'Type a GCSE word or concept' : 'Helper is off',
+                hintText: aiEnabled
+                    ? 'e.g. define proportion in science'
+                    : 'Enable the helper to ask',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
+            if (aiSuggestions.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: aiSuggestions.map((suggestion) {
+                  return ActionChip(
+                    label: Text(suggestion),
+                    onPressed: () => _insertAiSuggestion(suggestion),
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: 10),
             ElevatedButton.icon(
               icon: const Icon(Icons.chat_bubble_outline),
-              label: const Text('Ask AI'),
+              label: const Text('Submit Question'),
               style: ElevatedButton.styleFrom(backgroundColor: subjectColor),
-              onPressed: _sendAiQuestion,
+              onPressed: aiEnabled ? _sendAiQuestion : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExamReviewSheet(Color subjectColor) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Exam Review Sheet',
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: subjectColor)),
+            const SizedBox(height: 10),
+            Text(
+              'Subject marking scheme: ${_markingSchemeForSubject(selectedSubject)}',
+              style: const TextStyle(color: Colors.black87),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 300,
+              child: ListView.separated(
+                itemCount: examQuestions.length,
+                separatorBuilder: (_, __) => const Divider(height: 24),
+                itemBuilder: (context, index) {
+                  final question = examQuestions[index];
+                  final studentAnswer = examStudentAnswers[index];
+                  final score = examScores[index];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Question ${index + 1}:',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 6),
+                      Text(question.text, style: const TextStyle(fontSize: 15)),
+                      const SizedBox(height: 10),
+                      Text(
+                          'Your answer: ${studentAnswer.isEmpty ? 'No answer provided' : studentAnswer}',
+                          style: const TextStyle(color: Colors.black87)),
+                      const SizedBox(height: 6),
+                      Text('Perfect answer: ${question.idealAnswer}',
+                          style: const TextStyle(color: Colors.blueGrey)),
+                      const SizedBox(height: 6),
+                      Text('Question score: $score/5 ${_starsForScore(score)}',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 10),
+                      OutlinedButton(
+                        onPressed: () => _editExamAnswer(index),
+                        child: const Text('Fix this answer'),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ],
         ),
